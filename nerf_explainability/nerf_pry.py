@@ -26,6 +26,7 @@ class NeRFExtractor():
             skips=cfg.skips,
             input_ch_views=cfg.input_ch_views,
             use_viewdirs=cfg.use_viewdirs)
+        self.model_fine = None
 
         if cfg.n_importance > 0:
             self.model_fine = NeRF(
@@ -39,12 +40,11 @@ class NeRFExtractor():
 
         ckpt = torch.load(cfg.ckpt, map_location=str(self.device))
         self.model.load_state_dict(ckpt['network_fn_state_dict'])
+        self.model.requires_grad_(False)
 
         if self.model_fine is not None:
             self.model_fine.load_state_dict(ckpt['network_fine_state_dict'])
-
-        self.model.requires_grad_(False)
-        self.model_fine.requires_grad_(False)
+            self.model_fine.requires_grad_(False)
 
         self.model_query_fn = lambda inputs, viewdirs, network_fn : run_network(inputs, viewdirs, network_fn,
                                                                 embed_fn=self.pos_embed_fn,
