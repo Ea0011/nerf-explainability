@@ -1,13 +1,12 @@
 import torch
 from run_nerf_helpers import *
-from run_nerf import *
 from nerf_explainability.config.nerf_config import load_config, Config
-from run_nerf import render_path
 from nerf_explainability.data.nerf_dataset import BlenderDataset
 from nerf_explainability.hooks.hook_registration_resolver import HookRegistratorResolver
+from nerf_explainability.render.nerf_render import SceneRenderer
 
 
-class NeRFExtractor():
+class NeRFExtractor:
     """A class that provides access to layers and inputs of NeRF 
 
     The class loads NeRF models according to configuration
@@ -34,10 +33,9 @@ class NeRFExtractor():
         self.cfg = cfg
         self.load_models(cfg=cfg)
         self.load_embedder(cfg=cfg)
-        self.load_poses_dataset(cfg=cfg)
         self.load_layer_names()
 
-    def load_models(self, cfg):
+    def load_models(self, cfg: Config) -> None:
         self.model = NeRF(
             D=cfg.netdepth,
             W=cfg.netwidth,
@@ -66,45 +64,14 @@ class NeRFExtractor():
             self.model_fine.load_state_dict(ckpt['network_fine_state_dict'])
             self.model_fine.requires_grad_(False)
 
-        self.model_query_fn = lambda inputs, viewdirs, network_fn : run_network(inputs, viewdirs, network_fn,
-                                                                embed_fn=self.pos_embed_fn,
-                                                                embeddirs_fn=self.dir_embed_fn,
-                                                                netchunk=cfg.netchunk)
-
-    def load_layer_names(self):
+    def load_layer_names(self) -> None:
         self.layer_names = [name for name, _ in list(self.model.named_modules())]
 
-    def load_embedder(self, cfg: Config):
+    def load_embedder(self, cfg: Config) -> None:
         self.pos_embedder = Embedder(**cfg.pos_embedder)
         self.dir_embedder = Embedder(**cfg.dir_embedder)
 
-        self.pos_embed_fn = lambda x: self.pos_embedder.embed(x)
-        self.dir_embed_fn = lambda x: self.dir_embedder.embed(x)
-
-    def load_poses_dataset(self, cfg: Config):
-        # TODO: ideally check for dataset type and load proper data
-        self.poses_dataset = BlenderDataset(cfg, num_poses=1, offset=4)
-
-    def get_nerf_query_kwargs(self, cfg: Config):
-        render_kwargs = {
-            'network_query_fn' : self.model_query_fn,
-            'perturb' : cfg.perturb,
-            'N_importance' : cfg.n_importance,
-            'network_fine' : self.model_fine,
-            'N_samples' : cfg.n_samples,
-            'network_fn' : self.model,
-            'use_viewdirs' : cfg.use_viewdirs,
-            'white_bkgd' : cfg.white_bkgd,
-            'raw_noise_std' : cfg.raw_noise_std,
-            'near': cfg.near,
-            'far': cfg.far,
-            'ndc': cfg.ndc,
-            'lindisp': cfg.lindisp,
-        }
-
-        return render_kwargs
-
-    def get_layers(self, layer_specifications):
+    def get_layers(self, layer_specifications: list[dict]) -> list[dict]:
         """Get layers from NeRF models given their names.
 
         Args:
@@ -138,7 +105,10 @@ class NeRFExtractor():
 
         return layers + layers_fine
 
-    def _get_corresponding_layers(self, model, model_type, layers_to_gather):
+    def _get_corresponding_layers(self,
+                                  model: NeRF,
+                                  model_type: NeRF,
+                                  layers_to_gather: list[str]) -> list[dict]:
         """Get layers from NeRF models given their names.
 
         Args:
@@ -163,7 +133,7 @@ class NeRFExtractor():
 
         return layers
 
-    def register_hooks(self, hooks):
+    def register_hooks(self, hooks: list[dict]) -> dict:
         """Registers hooks to modules of NeRF.
 
         Args:
@@ -194,7 +164,10 @@ class NeRFExtractor():
 
         return hook_handles_coarse
 
-    def _register_hooks(self, model, model_type, hooks):
+    def _register_hooks(self,
+                        model: NeRF,
+                        model_type: str,
+                        hooks: list[dict]) -> dict:
         """Registers hooks to modules of NeRF.
 
         Args:
@@ -222,33 +195,6 @@ class NeRFExtractor():
         return hook_handles
 
 
-    def render(self):
-        """
-         Renders the NeRF into images given camera poses
-
-         Inputs to rendering functions:
-            render_poses: the camera poses to be rendered
-            hwf: Hieght, Width and Focal Length
-            K: The intrinsic matrix
-            chunk: Num of rays to process simulataneously
-            render_kwargs: rendering arguments
-            gt_images: the ground truth images
-            savedir: directory to save the output images to
-            render_factor: reduction to the rendering resulotion (H // f)
-        """
-        rgbs, disp = render_path(
-            self.poses_dataset.render_poses,
-            self.poses_dataset.hwf,
-            self.poses_dataset.K,
-            self.cfg.chunk,
-            self.get_nerf_query_kwargs(self.cfg),
-            gt_imgs=self.poses_dataset.images,
-            savedir=self.cfg.output_dir,
-            render_factor=self.cfg.render_factor,)
-
-        return rgbs, disp
-
-
 if __name__ == "__main__":
     cfg = load_config("./nerf_explainability/config/lego.ini")
     nerf_extractor = NeRFExtractor(cfg)
@@ -269,7 +215,14 @@ if __name__ == "__main__":
         {"type": "coarse", "layer_name": "rgb_linear", "hook_type": "forward", "hook": lambda m, i, o: print(f"here we are in {m}")}
     ]
     handles = nerf_extractor.register_hooks(hooks)
-    print(handles)
-    nerf_extractor.render()
 
+    ds = BlenderDataset(cfg, num_poses=1, offset=4)
 
+    renderer = SceneRenderer()
+    renderer \
+        .set_dir_embedder(nerf_extractor.dir_embedder) \
+        .set_pos_embedder(nerf_extractor.pos_embedder) \
+        .set_model(nerf_extractor.model) \
+        .set_model_fine(nerf_extractor.model_fine)
+    
+    renderer.render(cfg=cfg, render_poses=ds.render_poses, hwf=ds.hwf, K=ds.K, images=ds.images)
