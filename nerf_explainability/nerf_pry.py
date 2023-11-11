@@ -4,6 +4,7 @@ from run_nerf import *
 from nerf_explainability.nerf_config import load_config, Config
 from run_nerf import render_path
 from nerf_dataset import BlenderDataset
+from hooks.hook_registration_resolver import HookRegistratorResolver
 
 
 # TODO: write hook registrators to gather, modify inputs, activations and weights of the NeRF model
@@ -122,6 +123,42 @@ class NeRFExtractor():
                     })
 
         return layers
+
+    def register_hooks(self, hooks): # registers forward hooks based on criteria. [{"type": "fine", "layer_name": "name", "hook_type", "hook", forward_hook_fn}]
+        hooks_coarse, hooks_fine = {}, {}
+        for hook in hooks:
+            model_type, layer_name, hook_type, fn = hook["type"], hook["layer_name"], hook["hook_type"], hook["hook"]
+
+            if layer_name not in self.layer_names:
+                raise Exception(f'Error: layer {layer_name} is not available')
+
+            if model_type == "fine":
+                hooks_fine[layer_name] = (hook_type, fn)
+            elif model_type == "coarse":
+                hooks_coarse[layer_name] = (hook_type, fn)
+
+        hook_handles_coarse = self._register_hooks(self.model, model_type="coarse", hooks=hooks_coarse)
+        hook_handles_fine = self._register_hooks(self.model_fine, model_type="fine", hooks=hooks_fine)
+
+        hook_handles_coarse.update(hook_handles_fine)
+
+        return hook_handles_coarse
+
+    def _register_hooks(self, model, model_type, hooks):
+        hook_handles = {}
+        hook_registrator_resolver = HookRegistratorResolver()
+
+        if model is not None:
+            for name, layer in model.named_modules():
+                if name in hooks:
+                    hook_type, hook_fn = hooks[name]
+                    hook_registrator = hook_registrator_resolver.resolve(hook_type)
+                    handle = hook_registrator(layer, hook_fn)
+
+                    hook_handles[f"{model_type}.{name}"] = handle
+
+        return hook_handles
+
 
     def render(self):
         """
