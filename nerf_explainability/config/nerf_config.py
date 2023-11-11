@@ -55,7 +55,7 @@ class Config:
     lindisp: bool
 
 
-def load_config(config_path):
+def load_config(config_path: str):
     assert config_path is not None
 
     config_types = get_type_hints(Config)
@@ -95,7 +95,7 @@ def load_config(config_path):
     return config
 
 
-def get_embedder_config(multires):
+def get_embedder_config(multires: int):
     embed_config_dict = {
         "include_input": True,
         "input_dims": 3,

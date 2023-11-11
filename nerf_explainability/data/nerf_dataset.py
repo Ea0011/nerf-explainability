@@ -1,6 +1,6 @@
 from load_blender import load_blender_data
 import numpy as np
-from nerf_explainability.config.nerf_config import load_config
+from nerf_explainability.config.nerf_config import load_config, Config
 import torch
 
 
@@ -14,7 +14,7 @@ class BlenderDataset():
     i_split - train/val/test split indices
     num_poses - number of camera poses to render for
     """
-    def __init__(self, cfg, num_poses=1, offset=0) -> None:
+    def __init__(self, cfg: Config, num_poses: int = 1, offset: int =0) -> None:
         images, poses, self.render_poses, hwf, i_split = load_blender_data(cfg.datadir, cfg.half_res, cfg.testskip)
 
         i_train, i_val, i_test = i_split

@@ -7,5 +7,5 @@ class HookRegistratorResolver():
             "forward": forward_hook_registrator,
         }
 
-    def resolve(self, hook_type):
+    def resolve(self, hook_type: str):
         return self.hook_to_registrator_mapping[hook_type]
