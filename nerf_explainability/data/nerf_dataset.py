@@ -1,6 +1,6 @@
 from load_blender import load_blender_data
 import numpy as np
-from nerf_explainability.nerf_config import load_config
+from nerf_explainability.config.nerf_config import load_config
 import torch
 
 

@@ -1,15 +1,33 @@
 import torch
 from run_nerf_helpers import *
 from run_nerf import *
-from nerf_explainability.nerf_config import load_config, Config
+from nerf_explainability.config.nerf_config import load_config, Config
 from run_nerf import render_path
-from nerf_dataset import BlenderDataset
-from hooks.hook_registration_resolver import HookRegistratorResolver
+from nerf_explainability.data.nerf_dataset import BlenderDataset
+from nerf_explainability.hooks.hook_registration_resolver import HookRegistratorResolver
 
 
-# TODO: write hook registrators to gather, modify inputs, activations and weights of the NeRF model
 class NeRFExtractor():
+    """A class that provides access to layers and inputs of NeRF 
+
+    The class loads NeRF models according to configuration
+    and provides API to attach torch hooks and get access to
+    NeRF layers
+
+    Attributes:
+        model: A regula NeRF model
+        model_fine: A fine-grained NeRF model for importance sampling (more in paper)
+        cfg: Config of the loaded NeRF
+        layer_names: Names of NeRF layers
+        dir_embedder: Fourier feature embedder of input [theta, phi]
+        pos_embedder: Fourier feature embedder of input [x, y, z]
+    """
     def __init__(self, cfg: Config) -> None:
+        """Initializes the instance based on NeRF config.
+
+        Args:
+          cfg: A Config used to instanciate and render from NeRF
+        """
         self.device = torch.device("cuda") if torch.cuda.is_available() \
             else torch.device("cpu")
 
@@ -86,7 +104,18 @@ class NeRFExtractor():
 
         return render_kwargs
 
-    def get_layers(self, layer_specifications=[]): # layer_spec defines which layers to output: [{"type": "fine", "name": "pts_linears.0"}]
+    def get_layers(self, layer_specifications):
+        """Get layers from NeRF models given their names.
+
+        Args:
+            layer_specifications: An array of dicts specifying which
+            layers to get by name and model type
+            An example dict of layer spec is:
+                {"type": "fine", "name": "pts_linears.0"}
+
+        Returns:
+            An array of all the desired layers in the model
+        """
         if len(layer_specifications) == 0:
             return []
 
@@ -110,6 +139,16 @@ class NeRFExtractor():
         return layers + layers_fine
 
     def _get_corresponding_layers(self, model, model_type, layers_to_gather):
+        """Get layers from NeRF models given their names.
+
+        Args:
+            model: A NeRF model loaded by this class
+            model_type: Either coarse or fine
+            layers_to_gather: A list of names of the layers to get for the model
+
+        Returns:
+            An array of all the desired layers in the model
+        """
         if len(layers_to_gather) == 0:
             return []
 
@@ -124,7 +163,18 @@ class NeRFExtractor():
 
         return layers
 
-    def register_hooks(self, hooks): # registers forward hooks based on criteria. [{"type": "fine", "layer_name": "name", "hook_type", "hook", forward_hook_fn}]
+    def register_hooks(self, hooks):
+        """Registers hooks to modules of NeRF.
+
+        Args:
+            hooks: An array of dicts specifying hooks and where to attach them
+            an example hook config:
+
+            {"type": "fine", "layer_name": "rgb_linear", "hook_type": "pre_forward", "hook": lambda m, i}
+
+        Returns:
+            A dict of hook handles attached to each layer of coarse and fine NeRF models
+        """
         hooks_coarse, hooks_fine = {}, {}
         for hook in hooks:
             model_type, layer_name, hook_type, fn = hook["type"], hook["layer_name"], hook["hook_type"], hook["hook"]
@@ -145,6 +195,18 @@ class NeRFExtractor():
         return hook_handles_coarse
 
     def _register_hooks(self, model, model_type, hooks):
+        """Registers hooks to modules of NeRF.
+
+        Args:
+            model: A NeRF model loaded in this class
+            model_type: Either fine or coarse
+            hooks: specifications of hooks and where to attach them
+
+            {"type": "fine", "layer_name": "rgb_linear", "hook_type": "pre_forward", "hook": lambda m, i}
+
+        Returns:
+            A dict of hook handles attached to each layer of coarse and fine NeRF models
+        """
         hook_handles = {}
         hook_registrator_resolver = HookRegistratorResolver()
 
@@ -164,15 +226,15 @@ class NeRFExtractor():
         """
          Renders the NeRF into images given camera poses
 
-         Args:
-            render_poses -> the camera poses to be rendered
-            hwf -> Hieght, Width and Focal Length
-            K -> The intrinsic matrix
-            chunk -> Num of rays to process simulataneously
-            render_kwargs -> rendering arguments
-            gt_images -> the ground truth images
-            savedir -> directory to save the output images to
-            render_factor -> reduction to the rendering resulotion (H // f)
+         Inputs to rendering functions:
+            render_poses: the camera poses to be rendered
+            hwf: Hieght, Width and Focal Length
+            K: The intrinsic matrix
+            chunk: Num of rays to process simulataneously
+            render_kwargs: rendering arguments
+            gt_images: the ground truth images
+            savedir: directory to save the output images to
+            render_factor: reduction to the rendering resulotion (H // f)
         """
         rgbs, disp = render_path(
             self.poses_dataset.render_poses,
@@ -192,6 +254,22 @@ if __name__ == "__main__":
     nerf_extractor = NeRFExtractor(cfg)
 
     print(f"Rendering with config: {cfg}")
+
+    extracted_layers = nerf_extractor.get_layers([
+        {"type": "fine", "name": "pts_linears.0"},
+        {"type": "fine", "name": "rgb_linear"},
+        {"type": "coarse", "name": "rgb_linear"},
+        {"type": "coarse", "name": "rgb_linaer"},
+    ])
+
+    print(extracted_layers)
+
+    hooks = [
+        {"type": "fine", "layer_name": "rgb_linear", "hook_type": "pre_forward", "hook": lambda m, i: print(f"here we are in {m}")},
+        {"type": "coarse", "layer_name": "rgb_linear", "hook_type": "forward", "hook": lambda m, i, o: print(f"here we are in {m}")}
+    ]
+    handles = nerf_extractor.register_hooks(hooks)
+    print(handles)
     nerf_extractor.render()
 
 
