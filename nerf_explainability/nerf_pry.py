@@ -16,7 +16,8 @@ class NeRFExtractor():
         self.load_models(cfg=cfg)
         self.load_embedder(cfg=cfg)
         self.load_poses_dataset(cfg=cfg)
-        
+        self.load_layer_names()
+
     def load_models(self, cfg):
         self.model = NeRF(
             D=cfg.netdepth,
@@ -51,6 +52,9 @@ class NeRFExtractor():
                                                                 embeddirs_fn=self.dir_embed_fn,
                                                                 netchunk=cfg.netchunk)
 
+    def load_layer_names(self):
+        self.layer_names = [name for name, _ in list(self.model.named_modules())]
+
     def load_embedder(self, cfg: Config):
         self.pos_embedder = Embedder(**cfg.pos_embedder)
         self.dir_embedder = Embedder(**cfg.dir_embedder)
@@ -81,6 +85,44 @@ class NeRFExtractor():
 
         return render_kwargs
 
+    def get_layers(self, layer_specifications=[]): # layer_spec defines which layers to output: [{"type": "fine", "name": "pts_linears.0"}]
+        if len(layer_specifications) == 0:
+            return []
+
+        layers_to_gather, layers_to_gather_fine = [], []
+        for spec in layer_specifications:
+            model_type = spec["type"]
+            if model_type == "fine":
+                if spec["name"] not in self.layer_names:
+                    print(f"WARNING: layer {spec['name']} is not available")
+
+                layers_to_gather_fine.append(spec["name"])
+            else:
+                if spec["name"] not in self.layer_names:
+                    print(f"WARNING: layer {spec['name']} is not available")
+
+                layers_to_gather.append(spec["name"])
+
+        layers = self._get_corresponding_layers(self.model, model_type="coarse", layers_to_gather=layers_to_gather)
+        layers_fine = self._get_corresponding_layers(self.model_fine, model_type="fine", layers_to_gather=layers_to_gather_fine)
+
+        return layers + layers_fine
+
+    def _get_corresponding_layers(self, model, model_type, layers_to_gather):
+        if len(layers_to_gather) == 0:
+            return []
+
+        layers = []
+        if model is not None:
+            for name, layer in model.named_modules():
+                if name in layers_to_gather:
+                    layers.append({
+                        "name": f"{model_type}.{name}",
+                        "layer": layer,
+                    })
+
+        return layers
+
     def render(self):
         """
          Renders the NeRF into images given camera poses
@@ -104,7 +146,7 @@ class NeRFExtractor():
             gt_imgs=self.poses_dataset.images,
             savedir=self.cfg.output_dir,
             render_factor=self.cfg.render_factor,)
-        
+
         return rgbs, disp
 
 
