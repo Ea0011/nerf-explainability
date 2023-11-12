@@ -210,13 +210,13 @@ if __name__ == "__main__":
 
     print(extracted_layers)
 
-    hooks = [
-        {"type": "fine", "layer_name": "rgb_linear", "hook_type": "pre_forward", "hook": lambda m, i: print(f"here we are in {m}")},
-        {"type": "coarse", "layer_name": "rgb_linear", "hook_type": "forward", "hook": lambda m, i, o: print(f"here we are in {m}")}
-    ]
-    handles = nerf_extractor.register_hooks(hooks)
+    # hooks = [
+    #     {"type": "fine", "layer_name": "rgb_linear", "hook_type": "pre_forward", "hook": lambda m, i: print(f"here we are in {m}")},
+    #     {"type": "coarse", "layer_name": "rgb_linear", "hook_type": "forward", "hook": lambda m, i, o: print(f"here we are in {m}")}
+    # ]
+    # handles = nerf_extractor.register_hooks(hooks)
 
-    ds = BlenderDataset(cfg, num_poses=1, offset=4)
+    ds = BlenderDataset(cfg, num_poses=1, offset=0)
 
     renderer = SceneRenderer()
     renderer \

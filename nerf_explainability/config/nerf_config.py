@@ -34,8 +34,10 @@ class Config:
     perturb: float
     use_viewdirs: bool
     i_embed: int
-    multires: int
+    multires: float
     multires_views: int
+    n_freqs: int
+    n_freqs_dir: int
     raw_noise_std: float
     render_only: bool
     render_test: bool
@@ -82,12 +84,14 @@ def load_config(config_path: str):
 
     pos_mulres, dir_mulres = config_dict["multires"], \
         config_dict["multires_views"]
+    
+    n_freqs, n_freqs_dir = config_dict["n_freqs"], config_dict["n_freqs_dir"]
 
-    config_dict["pos_embedder"] = get_embedder_config(pos_mulres)
-    config_dict["dir_embedder"] = get_embedder_config(dir_mulres)
+    config_dict["pos_embedder"] = get_embedder_config(pos_mulres, n_freqs)
+    config_dict["dir_embedder"] = get_embedder_config(dir_mulres, n_freqs_dir)
 
-    config_dict["input_ch"] = config_dict["pos_embedder"]["out_dim"]
-    config_dict["input_ch_views"] = config_dict["dir_embedder"]["out_dim"]
+    config_dict["input_ch"] = int(config_dict["pos_embedder"]["out_dim"])
+    config_dict["input_ch_views"] = int(config_dict["dir_embedder"]["out_dim"])
     config_dict["output_ch"] = 5 if config_dict["n_importance"] > 0 else 4
 
     config = Config(**config_dict)
@@ -95,17 +99,17 @@ def load_config(config_path: str):
     return config
 
 
-def get_embedder_config(multires: int):
+def get_embedder_config(multires: float, n_freqs: int):
     embed_config_dict = {
         "include_input": True,
         "input_dims": 3,
         "max_freq_log2": multires - 1,
-        "num_freqs": multires,
+        "num_freqs": n_freqs,
         "log_sampling": True,
         "periodic_fns": [torch.sin, torch.cos],
     }
 
-    num_periodic_embedding_dims = multires * \
+    num_periodic_embedding_dims = n_freqs * \
         len(embed_config_dict["periodic_fns"]) * \
         embed_config_dict["input_dims"] + 3
 
