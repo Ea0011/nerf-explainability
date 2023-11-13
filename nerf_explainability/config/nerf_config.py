@@ -35,7 +35,7 @@ class Config:
     use_viewdirs: bool
     i_embed: int
     multires: float
-    multires_views: int
+    multires_views: float
     n_freqs: int
     n_freqs_dir: int
     raw_noise_std: float
