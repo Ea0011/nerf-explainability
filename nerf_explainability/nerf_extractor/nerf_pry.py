@@ -1,7 +1,7 @@
 import torch
 from run_nerf_helpers import *
 from nerf_explainability.config.nerf_config import load_config, Config
-from nerf_explainability.data.nerf_dataset import BlenderDataset, LLFFDataset
+from nerf_explainability.data.nerf_dataset import NeRFDataset
 from nerf_explainability.hooks.hook_registration_resolver import HookRegistratorResolver
 from nerf_explainability.render.nerf_render import SceneRenderer
 
@@ -216,8 +216,7 @@ if __name__ == "__main__":
     # ]
     # handles = nerf_extractor.register_hooks(hooks)
 
-    # ds = BlenderDataset(cfg, num_poses=1, offset=0)
-    ds = LLFFDataset(cfg, num_poses=1, offset=0)
+    ds = NeRFDataset.from_dataset_type(cfg.dataset_type)(cfg, num_poses=1, offset=0)
 
     renderer = SceneRenderer()
     renderer \
