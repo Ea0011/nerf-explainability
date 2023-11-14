@@ -1,7 +1,7 @@
 import torch
 from run_nerf_helpers import *
 from nerf_explainability.config.nerf_config import load_config, Config
-from nerf_explainability.data.nerf_dataset import BlenderDataset
+from nerf_explainability.data.nerf_dataset import BlenderDataset, LLFFDataset
 from nerf_explainability.hooks.hook_registration_resolver import HookRegistratorResolver
 from nerf_explainability.render.nerf_render import SceneRenderer
 
@@ -196,7 +196,7 @@ class NeRFExtractor:
 
 
 if __name__ == "__main__":
-    cfg = load_config("./nerf_explainability/config/lego.ini")
+    cfg = load_config("./nerf_explainability/config/fern.ini")
     nerf_extractor = NeRFExtractor(cfg)
 
     print(f"Rendering with config: {cfg}")
@@ -216,7 +216,8 @@ if __name__ == "__main__":
     # ]
     # handles = nerf_extractor.register_hooks(hooks)
 
-    ds = BlenderDataset(cfg, num_poses=1, offset=0)
+    # ds = BlenderDataset(cfg, num_poses=1, offset=0)
+    ds = LLFFDataset(cfg, num_poses=1, offset=0)
 
     renderer = SceneRenderer()
     renderer \

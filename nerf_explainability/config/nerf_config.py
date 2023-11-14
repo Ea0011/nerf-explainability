@@ -55,6 +55,9 @@ class Config:
     far: float
     ndc: bool
     lindisp: bool
+    spherify: bool = False
+    llffhold: int = 8
+    factor: int = 8
 
 
 def load_config(config_path: str):
