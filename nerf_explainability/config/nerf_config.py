@@ -85,9 +85,8 @@ def load_config(config_path: str):
             if str(cast_fn) == "<class 'bool'>":
                 config_dict[k] = bool_map[v]
 
-    pos_mulres, dir_mulres = config_dict["multires"], \
-        config_dict["multires_views"]
-    
+    pos_mulres, dir_mulres = config_dict["multires"], config_dict["multires_views"]
+
     n_freqs, n_freqs_dir = config_dict["n_freqs"], config_dict["n_freqs_dir"]
 
     config_dict["pos_embedder"] = get_embedder_config(pos_mulres, n_freqs)
@@ -112,9 +111,12 @@ def get_embedder_config(multires: float, n_freqs: int):
         "periodic_fns": [torch.sin, torch.cos],
     }
 
-    num_periodic_embedding_dims = n_freqs * \
-        len(embed_config_dict["periodic_fns"]) * \
-        embed_config_dict["input_dims"] + 3
+    num_periodic_embedding_dims = (
+        n_freqs
+        * len(embed_config_dict["periodic_fns"])
+        * embed_config_dict["input_dims"]
+        + 3
+    )
 
     embed_config_dict["out_dim"] = num_periodic_embedding_dims
 
