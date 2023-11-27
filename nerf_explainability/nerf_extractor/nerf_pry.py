@@ -4,6 +4,7 @@ from nerf_explainability.config.nerf_config import load_config, Config
 from nerf_explainability.data.nerf_dataset import NeRFDataset
 from nerf_explainability.hooks.hook_registration_resolver import HookRegistratorResolver
 from nerf_explainability.render.nerf_render import SceneRenderer
+from typing import Callable
 
 
 class NeRFExtractor:
@@ -142,7 +143,7 @@ class NeRFExtractor:
 
         return layers
 
-    def register_hooks(self, hooks: list[dict]) -> dict:
+    def register_hooks(self, hooks: list[dict]) -> dict[str, Callable[..., None]]:
         """Registers hooks to modules of NeRF.
 
         Args:
@@ -182,7 +183,9 @@ class NeRFExtractor:
 
         return hook_handles_coarse
 
-    def _register_hooks(self, model: NeRF, model_type: str, hooks: list[dict]) -> dict:
+    def _register_hooks(
+        self, model: NeRF, model_type: str, hooks: list[dict]
+    ) -> dict[str, Callable[..., None]]:
         """Registers hooks to modules of NeRF.
 
         Args:

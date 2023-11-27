@@ -2,6 +2,7 @@ from nerf_explainability.config.nerf_config import Config
 from run_nerf import render_path
 from run_nerf_helpers import *
 from run_nerf import *
+from typing import Callable
 
 
 class SceneRenderer:
@@ -44,7 +45,7 @@ class SceneRenderer:
 
         return render_kwargs
 
-    def get_nerf_query_fn(self, cfg: Config):
+    def get_nerf_query_fn(self, cfg: Config) -> Callable:
         return lambda inputs, viewdirs, network_fn: run_network(
             inputs,
             viewdirs,

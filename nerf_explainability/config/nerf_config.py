@@ -60,7 +60,7 @@ class Config:
     factor: int = 8
 
 
-def load_config(config_path: str):
+def load_config(config_path: str) -> Config:
     assert config_path is not None
 
     config_types = get_type_hints(Config)
@@ -101,7 +101,7 @@ def load_config(config_path: str):
     return config
 
 
-def get_embedder_config(multires: float, n_freqs: int):
+def get_embedder_config(multires: float, n_freqs: int) -> dict:
     embed_config_dict = {
         "include_input": True,
         "input_dims": 3,
