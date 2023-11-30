@@ -35,7 +35,7 @@ def change_band_to_const(val: float) -> Callable[..., torch.Tensor]:
 def change_frequency_band(
     input: torch.Tensor,
     band_idx: int,
-    band_mod_fn: Callable[[torch.Tensor, int], Callable],
+    band_mod_fn: Callable[..., Callable],
     mask: Optional[torch.Tensor],
 ) -> torch.Tensor:
     band_start, band_end = get_bands(band_idx)
@@ -52,5 +52,28 @@ def change_frequency_band(
 
     # NOTE: in place modification to affect the skip connection as well
     input.copy_(ablated_points)
+
+    return input
+
+
+def change_dir_frequency_band(
+    input: torch.Tensor,
+    band_idx: int,
+    band_mod_fn: Callable[..., Callable],
+    mask: Optional[torch.Tensor],
+) -> torch.Tensor:
+    band_start, band_end = get_bands(band_idx)
+
+    features, input_dirs = torch.split(input, [256, 27], dim=-1)
+    res = input_dirs.clone()
+    res[:, band_start:band_end] = band_mod_fn(res[:, 0:3], input_dirs)
+
+    if mask is not None:
+        change_mask = mask.to(torch.float).unsqueeze(1).expand_as(input_dirs)
+        ablated_points = (1 - change_mask) * input_dirs + (change_mask * res)
+    else:
+        ablated_points = res
+
+    input.copy_(torch.cat([features, ablated_points], dim=-1))
 
     return input
