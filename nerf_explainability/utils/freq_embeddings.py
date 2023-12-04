@@ -66,7 +66,7 @@ def change_dir_frequency_band(
 
     features, input_dirs = torch.split(input, [256, 27], dim=-1)
     res = input_dirs.clone()
-    res[:, band_start:band_end] = band_mod_fn(res[:, 0:3], input_dirs)
+    res[:, band_start:band_end] = band_mod_fn(res[:, 0:3], band_idx)
 
     if mask is not None:
         change_mask = mask.to(torch.float).unsqueeze(1).expand_as(input_dirs)
